@@ -1,6 +1,7 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import dbHelper
+import helper
 from botinterface.flow import Flow
 from customLogging import get_logger, INFO, ERROR
 from params import root_dir, tokens
@@ -59,10 +60,22 @@ def command_new(update, context):
 
     expected_keys = {
         'full_url': ['Alright. Send me the URL you want to teenify.'],
-        'alias': ['What do you want the URL to look like?']
     }
 
+    # users who pay are allowed to decide what URLs can look like
+    alias = None
+    if user.paid_amount > 0:
+        expected_keys['alias'] = ['What do you want the URL to look like?']
+    else:
+        alias = helper.get_random_alias()
+
     flow = Flow(user_id=user.user_id, flow_type='new_url', expected_keys=expected_keys)
+    flow.keys['is_random'] = False
+
+    if alias is not None:
+        flow.keys['is_random'] = True
+        flow.keys['alias'] = alias
+
     flows[user.user_id] = flow
 
     handle_flow(user, None, context, flow)
@@ -97,11 +110,7 @@ def command_delete(update, context):
     url_idx = message.replace('/delete', '').strip()
     if url_idx.isdigit():
         url_idx = int(url_idx) - 1
-
         urls = dbHelper.get_aliases(user.id)
-
-        print([url.alias for url in urls], url_idx)
-
         if 0 <= url_idx < len(urls):
             invalid = False
 
@@ -151,21 +160,31 @@ def handle_flow(user, message, context, flow):
 
             alias = flow.keys['alias']
             full_url = flow.keys['full_url']
+            is_random = flow.keys['is_random']
 
             in_use_user_pk = dbHelper.is_alias_in_use(alias)
             if in_use_user_pk > 0:
-                log(user.username, INFO, f'Alias [{alias}] already exists for [{in_use_user_pk}].')
-                expected_key = 'alias'
-                if in_use_user_pk != user.id:
-                    flow.expected_keys[expected_key][0] = 'URL already in use by someone.'
+                if not is_random:
+
+                    log(user.username, INFO, f'Alias [{alias}] already exists for [{in_use_user_pk}].')
+                    expected_key = 'alias'
+                    if in_use_user_pk != user.id:
+                        flow.expected_keys[expected_key][0] = 'URL already in use by someone.'
+                    else:
+                        flow.expected_keys[expected_key][
+                            0] = 'URL already in use by you. Either delete that or send another.'
+
                 else:
-                    flow.expected_keys[expected_key][
-                        0] = 'URL already in use by you. Either delete that or send another.'
+
+                    log(user.username, INFO, f'Random alis [{alias}] conflicted!')
+                    context.bot.send_message(chat_id=user.user_id, text=f'There was problem, try again?')
+
             else:
                 dbHelper.create_url(
                     user.id,
                     full_url,
-                    alias
+                    alias,
+                    is_random
                 )
                 log(user.username, INFO, f'Created new alias [{alias}] for url [{full_url}].')
                 context.bot.send_message(chat_id=user.user_id, text=f'Created.')

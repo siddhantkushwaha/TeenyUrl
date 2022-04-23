@@ -25,11 +25,12 @@ def get_user(user_id):
     return users[0]
 
 
-def create_url(user_pk, full_url, alias):
+def create_url(user_pk, full_url, alias, is_random):
     url = URL()
     url.full_url = full_url
     url.alias = alias
     url.user_id = user_pk
+    url.is_random = is_random
 
     db.session.merge(url)
     db.session.commit()
