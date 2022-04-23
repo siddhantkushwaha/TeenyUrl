@@ -2,7 +2,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import dbHelper
 import helper
-import params
+from botinterface import botHelper
 from botinterface.flow import Flow
 from customLogging import get_logger, INFO, ERROR
 from params import root_dir, tokens
@@ -46,7 +46,7 @@ def command_start(update, context):
     message_text = "I will help you create and manage short urls." \
                    "\n\nCommands you can use:" \
                    "\n\n/new - Create a new short URL." \
-                   "\n/list - List all URLs create by you." \
+                   "\n/list - List all URLs created by you." \
                    "\n/delete 1 - Delete first URL in the list shown by /list command." \
                    "\n/help - Get help." \
                    "\n\nReport issues at t.me/siddhantkushwaha"
@@ -65,7 +65,7 @@ def command_new(update, context):
 
     # users who pay are allowed to decide what URLs can look like
     alias = None
-    if user.paid_amount > 0:
+    if user.paid_amount > 0 or user.id == 1:
         expected_keys['alias'] = ['What do you want the URL to look like?']
     else:
         alias = helper.get_random_alias()
@@ -90,7 +90,7 @@ def command_list(update, context):
 
     urls = dbHelper.get_aliases(user.id)
 
-    message_text = 'URLs create by you:\n\n'
+    message_text = 'URLs created by you:\n\n'
     idx = 1
     for url in urls:
         message_text += f'{idx}. {url.alias} : {url.full_url[:100]}\n'
@@ -158,60 +158,9 @@ def handle_flow(user, message, context, flow):
             When all data is collected for a flow, it will have to be handled here
         """
         if flow.type == 'new_url':
-
-            alias = flow.keys['alias']
-            full_url = flow.keys['full_url']
-            is_random = flow.keys['is_random']
-
-            in_use_user_pk = dbHelper.is_alias_in_use(alias)
-            if in_use_user_pk > 0:
-                if not is_random:
-
-                    log(user.username, INFO, f'Alias [{alias}] already exists for [{in_use_user_pk}].')
-                    expected_key = 'alias'
-                    if in_use_user_pk != user.id:
-                        flow.expected_keys[expected_key][0] = 'URL already in use by someone.'
-                    else:
-                        flow.expected_keys[expected_key][
-                            0] = 'URL already in use by you. Either delete that or send another.'
-
-                else:
-
-                    log(user.username, INFO, f'Random alis [{alias}] conflicted!')
-                    context.bot.send_message(chat_id=user.user_id, text=f'There was problem, try again?')
-
-            else:
-                dbHelper.create_url(
-                    user.id,
-                    full_url,
-                    alias,
-                    is_random
-                )
-                log(user.username, INFO, f'Created new alias [{alias}] for url [{full_url}].')
-                context.bot.send_message(chat_id=user.user_id, text=f'Created. {params.hostname}/{alias}')
-
-                remove_flow(user.user_id)
-
+            expected_key = botHelper.create_url(user, context, flow)
         elif flow.type == 'delete_url':
-
-            alias = flow.keys['alias']
-            confirmation = flow.keys['confirmation'].lower()
-
-            if confirmation not in ['yes', 'no']:
-                log(user.username, INFO, f'Invalid reply.')
-                expected_key = 'confirmation'
-                flow.expected_keys[expected_key][
-                    0] = f"Didn't get it, should I delete the URL for {alias} or not? Yes/No?"
-            else:
-                if confirmation == 'yes':
-                    dbHelper.delete_url_by_alias(
-                        user.id,
-                        alias
-                    )
-                    log(user.username, INFO, f'Deleted [{alias}] from user [{user.id}].')
-                    context.bot.send_message(chat_id=user.user_id, text=f'Deleted.')
-
-                remove_flow(user.user_id)
+            expected_key = botHelper.delete_url(user, context, flow)
 
         else:
             log(user.username, ERROR, f'Unknown flow type [{flow.type}].')
