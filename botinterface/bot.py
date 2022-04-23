@@ -30,56 +30,110 @@ def basic(update):
     user_id = update.effective_chat.id
     username = update.effective_chat.username
 
-    user_pk = dbHelper.create_user(user_id, username)
+    user = dbHelper.create_user(user_id, username)
 
-    return user_pk, user_id, username
+    return user
 
 
-def start(update, context):
-    user_pk, user_id, username = basic(update)
-    remove_flow(user_id)
+def command_start(update, context):
+    user = basic(update)
+    remove_flow(user.user_id)
 
-    log(username, INFO, 'Command received [start/help].')
+    log(user.username, INFO, 'Command received [start/help].')
 
     message_text = "I will help you create and manage short urls." \
                    "\n\nCommands you can use:" \
-                   "\n\n    /new - Create a new short URL." \
-                   "\n    /list - List all URLs create by you." \
+                   "\n\n/new - Create a new short URL." \
+                   "\n/list - List all URLs create by you." \
+                   "\n/delete 1 - Delete first URL in the list shown by /list command." \
+                   "\n/help - Get help." \
                    "\n\nReport issues at t.me/siddhantkushwaha"
-    context.bot.send_message(chat_id=user_id, text=message_text)
+    context.bot.send_message(chat_id=user.user_id, text=message_text)
 
 
-def new(update, context):
-    user_pk, user_id, username = basic(update)
-    remove_flow(user_id)
+def command_new(update, context):
+    user = basic(update)
+    remove_flow(user.user_id)
 
-    log(username, INFO, 'Command received [new].')
+    log(user.username, INFO, 'Command received [new].')
 
-    flow = Flow(user_id=user_id, flow_type='new_url', expected_keys={
-        'full_url': 'Alright. Send me the URL you want to teenify.',
-        'alias': 'What do you want the URL to look like?'
-    })
-    flows[user_id] = flow
+    expected_keys = {
+        'full_url': ['Alright. Send me the URL you want to teenify.'],
+        'alias': ['What do you want the URL to look like?']
+    }
 
-    handle_flow(user_pk, user_id, username, None, context, flow)
+    flow = Flow(user_id=user.user_id, flow_type='new_url', expected_keys=expected_keys)
+    flows[user.user_id] = flow
+
+    handle_flow(user, None, context, flow)
+
+
+def command_list(update, context):
+    user = basic(update)
+    remove_flow(user.user_id)
+
+    log(user.username, INFO, 'Command received [list].')
+
+    urls = dbHelper.get_aliases(user.id)
+
+    message_text = 'URLs create by you:\n\n'
+    idx = 1
+    for url in urls:
+        message_text += f'{idx}. {url.alias} : {url.full_url[:100]}\n'
+        idx += 1
+
+    context.bot.send_message(chat_id=user.user_id, text=message_text)
+
+
+def command_delete(update, context):
+    user = basic(update)
+    remove_flow(user.user_id)
+
+    log(user.username, INFO, 'Command received [delete].')
+
+    message = update.message.text
+
+    invalid = True
+    url_idx = message.replace('/delete', '').strip()
+    if url_idx.isdigit():
+        url_idx = int(url_idx) - 1
+
+        urls = dbHelper.get_aliases(user.id)
+
+        print([url.alias for url in urls], url_idx)
+
+        if 0 <= url_idx < len(urls):
+            invalid = False
+
+            flow = Flow(user_id=user.user_id, flow_type='delete_url', expected_keys={
+                'confirmation': [f'Are you sure you want to delete the URL for {urls[url_idx].alias}? Yes/No?'],
+            })
+            flow.keys['alias'] = urls[url_idx].alias
+            flows[user.user_id] = flow
+
+            handle_flow(user, None, context, flow)
+
+    if invalid:
+        message_text = "You didn't use the command properly. Use '/list' first and then do '/delete 1' to delete first URL in the list."
+        context.bot.send_message(chat_id=user.user_id, text=message_text)
 
 
 def text(update, context):
-    user_pk, user_id, username = basic(update)
+    user = basic(update)
     message = update.message.text
 
-    flow = flows.get(user_id, None)
+    flow = flows.get(user.user_id, None)
     if flow is not None:
-        handle_flow(user_pk, user_id, username, message, context, flow)
+        handle_flow(user, message, context, flow)
     else:
-        context.bot.send_message(chat_id=user_id, text="What are you trying to do?")
+        context.bot.send_message(chat_id=user.user_id, text="What are you trying to do?")
 
-    log(username, INFO, 'Text received.')
+    log(user.username, INFO, 'Text received.')
 
 
-def handle_flow(user_pk, user_id, username, message, context, flow):
+def handle_flow(user, message, context, flow):
     if flow.next_key is not None and message is not None:
-        log(username, INFO, f'Received [{message} for [{flow.type}:{flow.next_key}].')
+        log(user.username, INFO, f'Received [{message} for [{flow.type}:{flow.next_key}].')
         flow.keys[flow.next_key] = message
 
     expected_key = None
@@ -100,40 +154,63 @@ def handle_flow(user_pk, user_id, username, message, context, flow):
 
             in_use_user_pk = dbHelper.is_alias_in_use(alias)
             if in_use_user_pk > 0:
-                log(username, INFO, f'Alias [{alias}] already exists for [{in_use_user_pk}].')
+                log(user.username, INFO, f'Alias [{alias}] already exists for [{in_use_user_pk}].')
                 expected_key = 'alias'
-                if in_use_user_pk != user_pk:
-                    flow.expected_keys[expected_key] = 'URL already in use by someone.'
+                if in_use_user_pk != user.id:
+                    flow.expected_keys[expected_key][0] = 'URL already in use by someone.'
                 else:
-                    flow.expected_keys[expected_key] = 'URL already in use by you. Either delete that or send another.'
+                    flow.expected_keys[expected_key][
+                        0] = 'URL already in use by you. Either delete that or send another.'
             else:
                 dbHelper.create_url(
-                    user_pk,
+                    user.id,
                     full_url,
                     alias
                 )
-                log(username, INFO, f'Created new alias [{alias}] for url [{full_url}].')
-                context.bot.send_message(chat_id=user_id, text=f'Created.')
+                log(user.username, INFO, f'Created new alias [{alias}] for url [{full_url}].')
+                context.bot.send_message(chat_id=user.user_id, text=f'Created.')
 
-                remove_flow(user_id)
+                remove_flow(user.user_id)
+
+        elif flow.type == 'delete_url':
+
+            alias = flow.keys['alias']
+            confirmation = flow.keys['confirmation'].lower()
+
+            if confirmation not in ['yes', 'no']:
+                log(user.username, INFO, f'Invalid reply.')
+                expected_key = 'confirmation'
+                flow.expected_keys[expected_key][
+                    0] = f"Didn't get it, should I delete the URL for {alias} or not? Yes/No?"
+            else:
+                if confirmation == 'yes':
+                    dbHelper.delete_url_by_alias(
+                        user.id,
+                        alias
+                    )
+                    log(user.username, INFO, f'Deleted [{alias}] from user [{user.id}].')
+                    context.bot.send_message(chat_id=user.user_id, text=f'Deleted.')
+
+                remove_flow(user.user_id)
 
         else:
-            log(username, ERROR, f'Unknown flow type [{flow.type}].')
+            log(user.username, ERROR, f'Unknown flow type [{flow.type}].')
 
     if expected_key is not None:
         flow.next_key = expected_key
-        context.bot.send_message(chat_id=user_id, text=flow.expected_keys[expected_key])
+        context.bot.send_message(chat_id=user.user_id, text=flow.expected_keys[expected_key][0])
 
 
 if __name__ == '__main__':
     updater = Updater(token=token, use_context=True)
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler('start', start))
-    dispatcher.add_handler(CommandHandler('help', start))
+    dispatcher.add_handler(CommandHandler('start', command_start))
+    dispatcher.add_handler(CommandHandler('help', command_start))
 
-    dispatcher.add_handler(CommandHandler('new', new))
-    dispatcher.add_handler(CommandHandler('list', start))
+    dispatcher.add_handler(CommandHandler('new', command_new))
+    dispatcher.add_handler(CommandHandler('list', command_list))
+    dispatcher.add_handler(CommandHandler('delete', command_delete))
 
     dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), text))
 

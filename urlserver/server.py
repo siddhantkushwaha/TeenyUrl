@@ -1,7 +1,7 @@
 from flask import Flask, redirect, request
 
+import dbHelper
 from db.database import get_db
-from db.models import URL
 
 app = Flask(__name__)
 
@@ -12,13 +12,9 @@ db = get_db()
 def visit(alias):
     visitor_ip = request.remote_addr
 
-    urls = db.session.query(URL).filter(URL.alias == alias).all()
-
-    if len(urls) > 0:
-
-        url_to_visit = urls[0].full_url
-        return redirect(url_to_visit)
-
+    url = dbHelper.get_url(alias)
+    if url is not None:
+        return redirect(url.full_url)
     else:
         return f'No url found for {alias}.'
 

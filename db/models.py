@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -24,6 +24,7 @@ class URL(Base):
     id = Column(Integer, primary_key=True)
     full_url = Column(String, nullable=False)
     alias = Column(String, nullable=False, unique=True)
+    is_random = Column(Boolean, nullable=False, default=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     # reference to the user
