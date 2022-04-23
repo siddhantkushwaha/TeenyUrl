@@ -2,6 +2,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import dbHelper
 import helper
+import params
 from botinterface.flow import Flow
 from customLogging import get_logger, INFO, ERROR
 from params import root_dir, tokens
@@ -187,7 +188,7 @@ def handle_flow(user, message, context, flow):
                     is_random
                 )
                 log(user.username, INFO, f'Created new alias [{alias}] for url [{full_url}].')
-                context.bot.send_message(chat_id=user.user_id, text=f'Created.')
+                context.bot.send_message(chat_id=user.user_id, text=f'Created. {params.hostname}/{alias}')
 
                 remove_flow(user.user_id)
 

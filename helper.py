@@ -3,7 +3,7 @@ import string
 
 
 def get_random_alias(n=7):
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=n))
+    return ''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k=n))
 
 
 if __name__ == '__main__':
