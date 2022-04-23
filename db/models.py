@@ -22,8 +22,8 @@ class User(Base):
 class URL(Base):
     __tablename__ = 'url'
     id = Column(Integer, primary_key=True)
-    fullurl = Column(String, nullable=False)
-    alias = Column(String, nullable=False)
+    full_url = Column(String, nullable=False)
+    alias = Column(String, nullable=False, unique=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     # reference to the user

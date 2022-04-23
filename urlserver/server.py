@@ -16,7 +16,7 @@ def visit(alias):
 
     if len(urls) > 0:
 
-        url_to_visit = urls[0].fullurl
+        url_to_visit = urls[0].full_url
         return redirect(url_to_visit)
 
     else:
