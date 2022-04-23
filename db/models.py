@@ -10,7 +10,8 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
-    user_id = Column(String, nullable=False)
+    user_id = Column(Integer, nullable=False, unique=True)
+    username = Column(String, nullable=False, unique=True)
     paid_amount = Column(Float, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
