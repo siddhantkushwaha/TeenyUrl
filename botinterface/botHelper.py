@@ -1,7 +1,24 @@
 import dbHelper
 import params
-from botinterface.bot import log, remove_flow
-from customLogging import INFO
+from customLogging import INFO, get_logger
+
+logger = get_logger('telegram', path=params.root_dir, log_level=5)
+
+"""
+    each user can only have one active flow at a time
+    when normal text received, check if flow is active for user, if not, ignore text
+    on receive a command from user, remove flow for user
+"""
+flows = dict()
+
+
+def log(user_id, level, message):
+    logger.log(level, f'{user_id} | {message}')
+
+
+def remove_flow(user_id):
+    if user_id in flows:
+        del flows[user_id]
 
 
 def create_url(user, context, flow):

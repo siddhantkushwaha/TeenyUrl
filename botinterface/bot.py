@@ -2,30 +2,12 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import dbHelper
 import helper
-from botinterface import botHelper
+from botinterface.botHelper import remove_flow, log, create_url, delete_url, flows
 from botinterface.flow import Flow
-from customLogging import get_logger, INFO, ERROR
-from params import root_dir, tokens
-
-logger = get_logger('telegram', path=root_dir, log_level=5)
+from customLogging import INFO, ERROR
+from params import tokens
 
 token = tokens['api']
-
-"""
-    each user can only have one active flow at a time
-    when normal text received, check if flow is active for user, if not, ignore text
-    on receive a command from user, remove flow for user
-"""
-flows = dict()
-
-
-def remove_flow(user_id):
-    if user_id in flows:
-        del flows[user_id]
-
-
-def log(user_id, level, message):
-    logger.log(level, f'{user_id} | {message}')
 
 
 def basic(update):
@@ -158,9 +140,9 @@ def handle_flow(user, message, context, flow):
             When all data is collected for a flow, it will have to be handled here
         """
         if flow.type == 'new_url':
-            expected_key = botHelper.create_url(user, context, flow)
+            expected_key = create_url(user, context, flow)
         elif flow.type == 'delete_url':
-            expected_key = botHelper.delete_url(user, context, flow)
+            expected_key = delete_url(user, context, flow)
 
         else:
             log(user.username, ERROR, f'Unknown flow type [{flow.type}].')
@@ -170,7 +152,7 @@ def handle_flow(user, message, context, flow):
         context.bot.send_message(chat_id=user.user_id, text=flow.expected_keys[expected_key][0])
 
 
-if __name__ == '__main__':
+def run():
     updater = Updater(token=token, use_context=True)
     dispatcher = updater.dispatcher
 

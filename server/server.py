@@ -32,5 +32,5 @@ def visit_v2(a1, a2):
         return f'No url found for {alias}.'
 
 
-if __name__ == '__main__':
+def run():
     app.run(host='0.0.0.0', port=80)
