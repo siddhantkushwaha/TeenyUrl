@@ -3,24 +3,22 @@ from datetime import datetime
 from flask import Flask, redirect, request
 
 import dbHelper
-from db.database import get_db
 
 app = Flask(__name__)
 
-db = get_db()
-
 
 def redirect_to_alias(visitor, alias):
-    url = dbHelper.get_url(alias)
+    db_helper = dbHelper.DbHelper()
+    url = db_helper.get_url(alias)
     if url is not None:
 
         # visitor tracking feature is only for non-random URLs
         if not url.is_random:
-            dbHelper.update_visitor(url.id, visitor)
+            db_helper.update_visitor_for_url(url.id, visitor)
 
         if ((datetime.utcnow() - url.timestamp).total_seconds() // 86400) >= 7:
             url.timestamp = datetime.utcnow()
-            dbHelper.update_url(url)
+            db_helper.update(url)
 
         return redirect(url.full_url)
     else:

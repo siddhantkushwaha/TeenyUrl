@@ -1,4 +1,3 @@
-import dbHelper
 import params
 from customLogging import INFO, get_logger
 
@@ -21,7 +20,7 @@ def remove_flow(user_id):
         del flows[user_id]
 
 
-def create_url(user, context, flow):
+def create_url(db_helper, user, context, flow):
     expected_key = None
 
     alias = flow.keys['alias']
@@ -32,7 +31,7 @@ def create_url(user, context, flow):
     if alias.count('/') > 1:
         is_alias_valid = False
 
-    in_use_user_pk = dbHelper.is_alias_in_use(alias)
+    in_use_user_pk = db_helper.is_alias_in_use(alias)
 
     if not is_alias_valid:
 
@@ -62,7 +61,7 @@ def create_url(user, context, flow):
 
     else:
 
-        dbHelper.create_url(
+        db_helper.create_url(
             user.id,
             full_url,
             alias,
@@ -76,7 +75,7 @@ def create_url(user, context, flow):
     return expected_key
 
 
-def delete_url(user, context, flow):
+def delete_url(db_helper, user, context, flow):
     expected_key = None
 
     alias = flow.keys['alias']
@@ -92,7 +91,7 @@ def delete_url(user, context, flow):
     else:
 
         if confirmation == 'yes':
-            dbHelper.delete_url_by_alias(
+            db_helper.delete_url_by_alias(
                 user.id,
                 alias
             )
@@ -102,3 +101,30 @@ def delete_url(user, context, flow):
         remove_flow(user.user_id)
 
     return expected_key
+
+
+def update_quota(db_helper, user, context, flow):
+    expected_key = None
+
+    shared_user_id = flow.keys['user_id']
+    paid_amount = int(flow.keys['paid_amount'])
+
+    shared_user = db_helper.create_user(shared_user_id)
+    shared_user.paid_amount += paid_amount
+    db_helper.update(shared_user)
+
+    context.bot.send_message(
+        chat_id=user.user_id,
+        text=f'Updated paid amount to : {int(shared_user.paid_amount)}.'
+    )
+
+    context.bot.send_message(
+        chat_id=shared_user_id,
+        text=f'Your quota has been updated. Total URLs you can create : {int(5 * shared_user.paid_amount)}.'
+    )
+
+    return expected_key
+
+
+def has_quota(db_helper, user):
+    return int(5 * user.paid_amount) > len(db_helper.get_aliases(user.id, is_random=False))

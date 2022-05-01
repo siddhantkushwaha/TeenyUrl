@@ -4,88 +4,76 @@ from db.database import get_db
 from db.models import User, URL, Visitor
 
 
-def create_user(user_id, username):
-    db = get_db()
-    users = db.session.query(User).filter(User.user_id == user_id).all()
-    if len(users) == 0:
-        user = User(user_id=user_id, username=username, paid_amount=0)
-    else:
-        user = users[0]
-        user.username = username
+class DbHelper:
 
-    db.session.merge(user)
-    db.session.commit()
+    def __init__(self):
+        self.db = get_db()
 
-    return user
+    def update(self, obj):
+        updated_obj = self.db.session.merge(obj)
+        self.db.session.commit()
+        obj.id = updated_obj.id
 
+    def create_user(self, user_id, username=''):
+        users = self.db.session.query(User).filter(User.user_id == user_id).all()
+        if len(username) == 0:
+            username = str(user_id)
+        if len(users) == 0:
+            user = User(user_id=user_id, username=username, paid_amount=0)
+        else:
+            user = users[0]
+            user.username = username
 
-def get_user(user_id):
-    db = get_db()
-    users = db.session.query(User).filter(User.user_id == user_id).all()
-    if len(users) == 0:
-        return None
-    return users[0]
+        self.update(user)
 
+        return user
 
-def create_url(user_pk, full_url, alias, is_random):
-    db = get_db()
-    url = URL()
-    url.full_url = full_url
-    url.alias = alias
-    url.user_id = user_pk
-    url.is_random = is_random
+    def get_user(self, user_id):
+        users = self.db.session.query(User).filter(User.user_id == user_id).all()
+        if len(users) == 0:
+            return None
+        return users[0]
 
-    db.session.merge(url)
-    db.session.commit()
+    def create_url(self, user_pk, full_url, alias, is_random):
+        url = URL()
+        url.full_url = full_url
+        url.alias = alias
+        url.user_id = user_pk
+        url.is_random = is_random
 
-    return url
+        self.update(url)
 
+        return url
 
-def update_url(url):
-    db = get_db()
-    db.session.merge(url)
-    db.session.commit()
+    def get_url(self, alias):
+        urls = self.db.session.query(URL).filter(URL.alias == alias).all()
+        if len(urls) == 0:
+            return None
+        return urls[0]
 
+    def is_alias_in_use(self, alias):
+        results = self.db.session.query(URL).filter(URL.alias == alias).all()
+        if len(results) > 0:
+            return results[0].user_id
+        return 0
 
-def get_url(alias):
-    db = get_db()
-    urls = db.session.query(URL).filter(URL.alias == alias).all()
-    if len(urls) == 0:
-        return None
-    return urls[0]
+    def get_aliases(self, user_pk):
+        urls = self.db.session.query(URL).filter(URL.user_id == user_pk).all()
+        return urls
 
+    def delete_url_by_alias(self, user_pk, alias):
+        url = self.get_url(alias)
+        if url is not None:
+            if url.user_id == user_pk:
+                self.db.session.query(URL).filter(URL.id == url.id).delete()
+                self.db.session.commit()
 
-def is_alias_in_use(alias):
-    db = get_db()
-    results = db.session.query(URL).filter(URL.alias == alias).all()
-    if len(results) > 0:
-        return results[0].user_id
-    return 0
+    def update_visitor_for_url(self, url_pk, visitor_ip):
+        visitors = self.db.session.query(Visitor).filter((Visitor.ip == visitor_ip) & (Visitor.url_id == url_pk)).all()
+        if len(visitors) > 0:
+            visitor = visitors[0]
+            visitor.timestamp = datetime.utcnow()
+        else:
+            visitor = Visitor(ip=visitor_ip, url_id=url_pk)
 
-
-def get_aliases(user_pk):
-    db = get_db()
-    urls = db.session.query(URL).filter(URL.user_id == user_pk).all()
-    return urls
-
-
-def delete_url_by_alias(user_pk, alias):
-    db = get_db()
-    url = get_url(alias)
-    if url is not None:
-        if url.user_id == user_pk:
-            db.session.query(URL).filter(URL.id == url.id).delete()
-            db.session.commit()
-
-
-def update_visitor(url_pk, visitor_ip):
-    db = get_db()
-    visitors = db.session.query(Visitor).filter((Visitor.ip == visitor_ip) & (Visitor.url_id == url_pk)).all()
-    if len(visitors) > 0:
-        visitor = visitors[0]
-        visitor.timestamp = datetime.utcnow()
-    else:
-        visitor = Visitor(ip=visitor_ip, url_id=url_pk)
-
-    db.session.merge(visitor)
-    db.session.commit()
+        self.update(visitor)

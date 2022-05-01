@@ -18,7 +18,11 @@ class Database:
 
     def __init__(self, engine_url):
         self.engine_ = create_engine(engine_url)
-        self.session_ = sessionmaker(bind=self.engine)()
+        self.session_ = sessionmaker(bind=self.engine, expire_on_commit=False)()
+
+    def __del__(self):
+        self.session.expunge_all()
+        self.session.close()
 
     @property
     def engine(self):
