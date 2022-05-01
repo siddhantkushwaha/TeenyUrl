@@ -1,2 +1,3 @@
-# URLShortener
-Dirt cheap url shortener service.
+# Teeny Url
+
+Dirt cheap url shortener utility.
