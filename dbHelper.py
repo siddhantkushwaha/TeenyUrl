@@ -57,8 +57,11 @@ class DbHelper:
             return results[0].user_id
         return 0
 
-    def get_aliases(self, user_pk):
-        urls = self.db.session.query(URL).filter(URL.user_id == user_pk).all()
+    def get_aliases(self, user_pk, is_random=None):
+        urls = self.db.session.query(URL).filter(URL.user_id == user_pk)
+        if is_random is not None:
+            urls = urls.filter(URL.is_random == is_random)
+        urls = urls.all()
         return urls
 
     def delete_url_by_alias(self, user_pk, alias):
