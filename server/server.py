@@ -13,7 +13,10 @@ db = get_db()
 def redirect_to_alias(visitor, alias):
     url = dbHelper.get_url(alias)
     if url is not None:
-        dbHelper.update_visitor(url.id, visitor)
+
+        # visitor tracking feature is only for non-random URLs
+        if not url.is_random:
+            dbHelper.update_visitor(url.id, visitor)
 
         if ((datetime.utcnow() - url.timestamp).total_seconds() // 86400) >= 7:
             url.timestamp = datetime.utcnow()
