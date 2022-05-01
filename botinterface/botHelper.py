@@ -42,7 +42,14 @@ def create_url(db_helper, user, context, flow):
 
     in_use_user_pk = db_helper.is_alias_in_use(alias)
 
-    if not is_alias_valid:
+    if full_url.startswith(params.hostname):
+
+        log(user.username, INFO, f'Loops not allowed [{full_url}].')
+
+        expected_key = 'full_url'
+        flow.expected_keys[expected_key][0] = "What you're trying to do is not allowed. 🧐."
+
+    elif not is_alias_valid:
 
         if not is_random:
             log(user.username, INFO, f'Invalid alias [{alias}].')
