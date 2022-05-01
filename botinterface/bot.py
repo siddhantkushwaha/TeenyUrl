@@ -5,7 +5,7 @@ import helper
 from botinterface.botHelper import remove_flow, log, create_url, delete_url, flows
 from botinterface.flow import Flow
 from customLogging import INFO, ERROR
-from params import tokens
+from params import tokens, hostname
 
 token = tokens['api']
 
@@ -75,7 +75,7 @@ def command_list(update, context):
     message_text = 'URLs created by you:\n\n'
     idx = 1
     for url in urls:
-        message_text += f'{idx}. {url.alias} : {url.full_url[:100]}\n'
+        message_text += f'{idx}. {hostname}/{url.alias} : {url.full_url[:100]}\n'
         idx += 1
 
     context.bot.send_message(chat_id=user.user_id, text=message_text)
