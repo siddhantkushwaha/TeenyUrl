@@ -10,3 +10,4 @@ with open(os.path.join(root_dir, 'config', 'tokens.json'), 'r') as fp:
     tokens = json.load(fp)
 
 hostname = config['hostname']
+domain = hostname.replace('http://', '').replace('https://', '')
