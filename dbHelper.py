@@ -16,7 +16,7 @@ class DbHelper:
 
     def create_user(self, user_id, username=''):
         users = self.db.session.query(User).filter(User.user_id == user_id).all()
-        if len(username) == 0:
+        if username is None or len(username) == 0:
             username = str(user_id)
         if len(users) == 0:
             user = User(user_id=user_id, username=username, paid_amount=0)
