@@ -1,3 +1,4 @@
+import helper
 import params
 from customLogging import INFO, get_logger
 
@@ -24,6 +25,14 @@ def create_url(db_helper, user, context, flow):
     expected_key = None
 
     alias = flow.keys['alias']
+    if alias.lower() == 'random':
+        alias = helper.get_random_alias()
+        is_random = True
+
+        # update keys
+        flow.keys['alias'] = alias
+        flow.keys['is_random'] = is_random
+
     full_url = flow.keys['full_url']
     is_random = flow.keys['is_random']
 

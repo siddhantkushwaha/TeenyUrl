@@ -54,7 +54,7 @@ def command_new(update, context):
     # users who pay are allowed to decide what URLs can look like
     alias = None
     if user.id == 1 or has_quota(db_helper, user):
-        expected_keys['alias'] = ['What do you want the URL to look like?']
+        expected_keys['alias'] = ["What do you want the URL to look like? Type 'random' to generate randomly."]
     else:
         alias = helper.get_random_alias()
 
