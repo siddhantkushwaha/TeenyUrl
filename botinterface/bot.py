@@ -1,10 +1,10 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from viper.customLogging import INFO, ERROR
 
 import helper
 import params
-from botinterface.botHelper import remove_flow, log, create_url, delete_url, update_quota, flows, has_quota
+from botinterface.botHelper import remove_flow, log, create_url, delete_url, update_quota, flows, has_quota, send_urls
 from botinterface.flow import Flow
-from customLogging import INFO, ERROR
 from dbHelper import DbHelper
 from params import tokens
 
@@ -79,17 +79,7 @@ def command_list(update, context):
 
     log(user.username, INFO, 'Command received [list].')
 
-    urls = db_helper.get_aliases(user.id)
-    if len(urls) > 0:
-        message_text = 'URLs created by you:\n\n'
-        idx = 1
-        for url in urls:
-            message_text += f'{idx}. {url.alias} : {url.full_url[:100]}\n'
-            idx += 1
-    else:
-        message_text = 'You have not created any URLs yet.'
-
-    context.bot.send_message(chat_id=user.user_id, text=message_text)
+    send_urls(db_helper, context, user)
 
 
 def command_delete(update, context):

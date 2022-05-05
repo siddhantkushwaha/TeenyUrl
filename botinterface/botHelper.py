@@ -1,6 +1,7 @@
+from viper.customLogging import INFO, get_logger
+
 import helper
 import params
-from customLogging import INFO, get_logger
 
 logger = get_logger('telegram', path=params.root_dir, log_level=5)
 
@@ -143,3 +144,17 @@ def update_quota(db_helper, user, context, flow):
 
 def has_quota(db_helper, user):
     return int(5 * user.paid_amount) > len(db_helper.get_aliases(user.id, is_random=False))
+
+
+def send_urls(db_helper, context, user):
+    urls = db_helper.get_aliases(user.id)
+    if len(urls) > 0:
+        message_text = 'URLs created by you:\n\n'
+        idx = 1
+        for url in urls:
+            message_text += f'{idx}. {url.alias} : {url.full_url[:100]}\n'
+            idx += 1
+    else:
+        message_text = 'You have not created any URLs yet.'
+
+    context.bot.send_message(chat_id=user.user_id, text=message_text)
