@@ -33,6 +33,7 @@ def command_start(update, context):
                    "\n\n/new - Create a new short URL." \
                    "\n/list - List all URLs created by you." \
                    "\n/delete 1 - Delete first URL in the list shown by /list command." \
+                   "\n/info 1 - View first URL in the list shown by /list command." \
                    "\n/sub - To unlock paid features." \
                    "\n/help - Get help." \
                    f"\n\nReport issues at {params.config['admin_telegram_address']}"
@@ -119,6 +120,36 @@ def command_delete(update, context):
 
     if invalid:
         message_text = "You didn't use the command properly. Use '/list' first and then do '/delete 1' to delete first URL in the list."
+        context.bot.send_message(chat_id=user.user_id, text=message_text)
+
+
+def command_info(update, context):
+    db_helper = DbHelper()
+
+    user = basic(db_helper, update)
+    remove_flow(user.user_id)
+
+    log(user.username, INFO, 'Command received [info].')
+
+    message = update.message.text
+
+    invalid = True
+    url_idx = message.replace('/info', '').strip()
+    if url_idx.isdigit():
+        url_idx = int(url_idx) - 1
+        urls = db_helper.get_aliases(user.id)
+        if 0 <= url_idx < len(urls):
+            invalid = False
+
+            url = urls[url_idx]
+
+            message_text = f"{params.hostname}/{url.alias}" \
+                           f"\n\nRedirects to - {url.full_url}" \
+                           f"\n\nNumber of visitors - {len(url.visitors)}"
+            context.bot.send_message(chat_id=user.user_id, text=message_text)
+
+    if invalid:
+        message_text = "You didn't use the command properly. Use '/list' first and then do '/info 1' to view first URL in the list."
         context.bot.send_message(chat_id=user.user_id, text=message_text)
 
 
@@ -214,17 +245,25 @@ def run():
     updater = Updater(token=token, use_context=True)
     dispatcher = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler('start', command_start))
-    dispatcher.add_handler(CommandHandler('help', command_start))
+    commands = {
+        'start': command_start,
+        'help': command_start,
+        'new': command_new,
+        'list': command_list,
+        'info': command_info,
+        'delete': command_delete,
+        'sub': command_sub
+    }
+    for command in commands:
+        dispatcher.add_handler(CommandHandler(command, commands[command]))
 
-    dispatcher.add_handler(CommandHandler('new', command_new))
-    dispatcher.add_handler(CommandHandler('list', command_list))
-    dispatcher.add_handler(CommandHandler('delete', command_delete))
-    dispatcher.add_handler(CommandHandler('sub', command_sub))
+    filters = {
+        Filters.text & (~Filters.command): text,
+        Filters.contact: contact
+    }
 
-    dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), text))
-
-    dispatcher.add_handler(MessageHandler(Filters.contact, contact))
+    for message_filter in filters:
+        dispatcher.add_handler(MessageHandler(message_filter, filters[message_filter]))
 
     updater.start_polling()
 
